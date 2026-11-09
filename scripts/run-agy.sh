@@ -117,7 +117,7 @@ watch() {
     if [ ! -s "$LOG" ]; then
       [ $((now - started)) -ge "$STARTUP_LIMIT" ] && return 1
     else
-      mt=$(stat -f %m "$LOG" 2>/dev/null || echo "$now")
+      mt=$(stat -c %Y "$LOG" 2>/dev/null || stat -f %m "$LOG" 2>/dev/null || echo "$now")   # GNU first: GNU `stat -f` prints filesystem info
       if [ $((now - mt)) -gt "$FREEZE_LIMIT" ]; then
         grep -q '"event": *"result"' "$LOG" && return 0   # finished; lingering zombie
         return 2

@@ -99,9 +99,15 @@ done
 [ "$DOCS" = "none" ] && say "RESOLVED docs=none"
 
 # Machine state: free memory, and any other open build that will compete for it.
-page=$(pagesize); total=$(sysctl -n hw.memsize)
-free_pages=$(vm_stat | awk '/Pages free|Pages inactive|Pages speculative/ {gsub("\\.","",$NF); s+=$NF} END {print s+0}')
-say "MEMORY: $((free_pages * page / 1073741824)) GB free or reclaimable of $((total / 1073741824)) GB"
+if [ -r /proc/meminfo ]; then   # Linux: MemAvailable already counts reclaimable cache
+  total=$(( $(awk '/^MemTotal:/ {print $2}' /proc/meminfo) * 1024 ))   # kB; awk would print 1.5e+10
+  free=$(( $(awk '/^MemAvailable:/ {print $2}' /proc/meminfo) * 1024 ))
+else
+  page=$(pagesize); total=$(sysctl -n hw.memsize)
+  free_pages=$(vm_stat | awk '/Pages free|Pages inactive|Pages speculative/ {gsub("\\.","",$NF); s+=$NF} END {print s+0}')
+  free=$((free_pages * page))
+fi
+say "MEMORY: $((free / 1073741824)) GB free or reclaimable of $((total / 1073741824)) GB"
 here=$(cd "$DIR" && pwd -P)
 find "$HOME/github" -maxdepth 6 -name node_modules -prune -o -path '*/.build/state.json' -print 2>/dev/null | while read -r st; do
   proj=$(cd "$(dirname "$st")/.." && pwd -P)

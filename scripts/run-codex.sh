@@ -125,7 +125,7 @@ fi
 started=$(date +%s); sleep 10 & wait $!; frozen=0
 while alive "$CODEX_PID"; do
   now=$(date +%s)
-  mt=$(stat -f %m "$LOG" 2>/dev/null || echo "$now")
+  mt=$(stat -c %Y "$LOG" 2>/dev/null || stat -f %m "$LOG" 2>/dev/null || echo "$now")   # GNU first: GNU `stat -f` prints filesystem info
   [ -s "$LOG" ] || mt=$started
   # all live children (codex keeps MCP servers alive too, so never judge by the first child only)
   childcmd=""

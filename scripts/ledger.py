@@ -10,6 +10,7 @@ import datetime
 import json
 import os
 import shutil
+import subprocess
 import sys
 
 ROW_HEADER = "| # | Trigger | Engine | Raw | Verified | Blocking | Tests | Action |\n|---|---|---|---|---|---|---|---|\n"
@@ -118,7 +119,14 @@ def cmd_init(L, a):
             + "".join(f"- {r}: `{v}`\n" for r, v in roles.items())
             + f"- pre-flight: {preflight}\n\n## Item manifest\n\n## Accepted residuals\n\n## Triage backlog\n\n"
               "## Discipline violations\n\n## Notes\n")
-    exclude = os.path.join(a.dir, ".git", "info", "exclude")
+    # ask git: in a linked worktree `.git` is a file, and the exclude list lives in the common dir
+    try:
+        rel = subprocess.run(["git", "-C", a.dir, "rev-parse", "--git-path", "info/exclude"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        exclude = os.path.join(a.dir, rel)
+        os.makedirs(os.path.dirname(exclude), exist_ok=True)
+    except (OSError, subprocess.CalledProcessError):
+        exclude = os.path.join(a.dir, ".git", "info", "exclude")
     if os.path.isdir(os.path.dirname(exclude)):
         cur = open(exclude).read() if os.path.exists(exclude) else ""
         for line in (".build/", ".build-archive/"):
