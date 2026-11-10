@@ -110,12 +110,20 @@ else
     PROMPT="$PROMPT $BRIEF. Then carry out the task the brief describes and produce the report it asks for."
   fi
   SANDBOX="workspace-write"; [ "$RO" -eq 1 ] && SANDBOX="read-only"
+  # On Linux codex sandboxes commands with bubblewrap, which needs unprivileged user namespaces. A
+  # container (Docker's default seccomp profile) denies them, so every command fails with "bwrap: No
+  # permissions to create a new namespace". There the container is the sandbox: run codex without its
+  # own, and keep read-only as the contract's report-only rule.
+  SANDBOX_ARGS=(-s "$SANDBOX")
+  if [ "$(uname -s)" = Linux ] && command -v unshare >/dev/null 2>&1 && ! unshare -U true 2>/dev/null; then
+    SANDBOX_ARGS=(--dangerously-bypass-approvals-and-sandbox); SANDBOX="none (no user namespaces; $SANDBOX by contract)"
+  fi
   GITCHK=(); git rev-parse --is-inside-work-tree >/dev/null 2>&1 || GITCHK=(--skip-git-repo-check)
 
   : > "$LOG"
   printf '%s\n' "$PROMPT" > ".build/runs/$TAG.prompt"
   perl -e 'use POSIX qw(setsid); setsid(); alarm shift; exec @ARGV' "$BACKSTOP" \
-    codex exec --json --color never -s "$SANDBOX" ${GITCHK[@]+"${GITCHK[@]}"} \
+    codex exec --json --color never "${SANDBOX_ARGS[@]}" ${GITCHK[@]+"${GITCHK[@]}"} \
     -m "$MODEL" -c model_reasoning_effort="$EFFORT" -o "$LAST" - < ".build/runs/$TAG.prompt" > "$LOG" 2>&1 &
   CODEX_PID=$!; CHILD=1
   echo "$CODEX_PID" > "$PIDF"
